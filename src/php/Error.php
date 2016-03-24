@@ -54,6 +54,8 @@ class Error implements ErrorInterface
             $arrayError['line']    = $e->getLine();
             $arrayError['message'] = $e->getMessage();
             $error = $arrayError;
+        } elseif (isset($e[0])) {
+            $error = array_shift($e);
         } else {
             $error = $e;
         }
