@@ -6,6 +6,19 @@ class Error implements ErrorInterface
 {
     protected $defaultMessage = 'An error has occured.';
     protected $debugStages    = [];
+    protected $logger = null;
+
+    public function __construct($logger=null)
+    {
+        if (is_null($logger)) {
+            $this->logger = new \Lucid\Component\BasicLogger\BasicLogger();
+        } else {
+            if (is_object($logger) === false || in_array('Psr\\Log\\LoggerInterface', class_implements($logger)) === false) {
+                throw new \Exception('Error contructor parameter $logger must either be null, or implement Psr\\Log\\LoggerInterface. If null is passed, then an instance of Lucid\\Component\\BasicLogger\\BasicLogger will be instantiated instead, and all messages will be passed along to error_log();');
+            }
+            $this->logger = $logger;
+        }
+    }
 
     public function setReportingDirective($value)
     {
@@ -29,7 +42,6 @@ class Error implements ErrorInterface
 
     public function registerHandlers()
     {
-
         register_shutdown_function([$this, 'shutdown']);
         set_error_handler(function(int $errno, string $errstr, string $errfile='', int $errline=-1){
             call_user_func([$this, 'shutdown'], [[
@@ -76,7 +88,7 @@ class Error implements ErrorInterface
         lucid::response()->reset();
 
         $errorMessage = lucid::error()->buildErrorString($e);
-        lucid::logger()->error($errorMessage);
+        $this->logger->error($errorMessage);
 
         # Only send the real error message on stages that are explicitly marked as debug stages
         if ($this->isDebugStage() === true) {
@@ -89,37 +101,4 @@ class Error implements ErrorInterface
             lucid::response()->write('error');
         }
     }
-
-
-    /*
-    public function throwError($message)
-    {
-        $backtrace = debug_backtrace()[0];
-        lucid::logger()->error(str_replace(lucid::$path, '', $backtrace['file']).'#'.$backtrace['line'].': '.$message);
-        throw new \Exception();
-    }
-    */
-
-    /*
-    public function notFound($data, string $replaceSelector = '#body')
-    {
-        if ($data === false) {
-            lucid::mvc()->view('error_data_not_found', ['replaceSelector'=>$replaceSelector]);
-            #throw new Exception\Silent('Data not found');
-        }
-    }
-
-
-    public function permissionDenied(string $replace_selector = '#body')
-    {
-        lucid::mvc()->view('error_permission_denied', ['replace_selector'=>$replace_selector]);
-        #throw new Exception\Silent('Permission denied');
-    }
-
-    public function loginRequired(string $replace_selector = '#body')
-    {
-        lucid::mvc()->view('error_login_required', ['replace_selector'=>$replace_selector]);
-        #throw new Exception\Silent('Login required');
-    }
-    */
 }
