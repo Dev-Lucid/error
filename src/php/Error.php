@@ -65,6 +65,7 @@ class Error implements ErrorInterface
             $arrayError['file']    = $e->getFile();
             $arrayError['line']    = $e->getLine();
             $arrayError['message'] = $e->getMessage();
+            $arrayError['trace']   = $e->getTraceAsString();
             $error = $arrayError;
         } elseif (isset($e[0])) {
             $error = array_shift($e);
@@ -87,14 +88,30 @@ class Error implements ErrorInterface
     {
         lucid::response()->reset();
 
-        $errorMessage = lucid::error()->buildErrorString($e);
+        $errorMessage = $this->buildErrorString($e);
+        $backtraces = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 9);
         $this->logger->error($errorMessage);
+        foreach ($backtraces as $backtrace) {
+            $msg = '    ';
+            $msg .= (isset($backtrace['file']) === true)? str_replace(lucid::$path, '', $backtrace['file']) : '<unknown file>';
+            $msg .= '#';
+            $msg .= $backtrace['line'] ?? '?';
+            $msg .= ' ';
+            $msg .= $backtrace['class'] ?? '';
+            $msg .= $backtrace['type'] ?? '';
+            $msg .= $backtrace['function'] ?? '';
+            lucid::logger()->error($msg);
+            #lucid::logger()->error(print_r($backtrace, true));
+        }
+
+
+
 
         # Only send the real error message on stages that are explicitly marked as debug stages
         if ($this->isDebugStage() === true) {
-            lucid::response()->error($errorMessage);
+            lucid::response()->message($errorMessage);
         } else {
-            lucid::response()->error($this->defaultMessage);
+            lucid::response()->message($this->defaultMessage);
         }
 
         if ($sendMessage === true) {
